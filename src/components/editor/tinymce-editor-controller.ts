@@ -5,25 +5,25 @@ const useTinymceEditorController = () => {
   const editorParentRef = useRef(null);
   const editorRef = useRef(null);
   const [loadEditor, setLoadEditor] = useState(false);
-  const executeScriptsInIframe = (editorContent) => {
+  const executeScriptsInIframe = (content) => {
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     iframe.sandbox = "allow-scripts allow-same-origin";
     document.body.appendChild(iframe);
 
-    return new Promise((resolve, reject) => {
+    const executionPromise = new Promise((resolve, reject) => {
       const iframeDocument =
         iframe.contentDocument || iframe.contentWindow.document;
 
       iframeDocument.open();
       iframeDocument.write(`
-        <html>
-          <head>
-            <base href="${window.location.origin}">
-          </head>
-          <body>${editorContent}</body>
-        </html>
-      `);
+          <html>
+            <head>
+              <base href="${window.location.origin}">
+            </head>
+            <body>${content}</body>
+          </html>
+        `);
       iframeDocument.close();
 
       iframe.onload = () => {
@@ -31,13 +31,21 @@ const useTinymceEditorController = () => {
           const updatedContent = iframeDocument.body.innerHTML;
           resolve(updatedContent);
         } catch (error) {
-          reject(new Error("Failed to execute scripts in iframe"));
+          reject(
+            new Error("Failed to execute scripts in iframe: " + error.message)
+          );
         } finally {
-          // Clean up the iframe after a delay to allow scripts to complete
-          setTimeout(() => iframe.remove(), 3000);
+          setTimeout(() => iframe.remove(), 5000);
         }
       };
     });
+
+    //from not getting in infinte loop
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Script execution timed out")), 5000)
+    );
+
+    return Promise.race([executionPromise, timeoutPromise]);
   };
   const checkScripts = (content) => {
     const tempDiv = document.createElement("div");
