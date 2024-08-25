@@ -4,120 +4,64 @@ import { useEffect, useRef, useState } from "react";
 const useTinymceEditorController = () => {
   const editorParentRef = useRef(null);
   const editorRef = useRef(null);
-//   const [isEditorLoading, setIsEditorLoading] = useState(true);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
-  // const [isInlineScriptLoaded, setIsInlineScriptLoaded] = useState(false);
-
-
-  const onEditorLoad = () => {
-    // setIsEditorLoading(false);
-    // setTimeout(() => {
-    setIsScriptLoaded(true);
-    // }, 0);
-  };
-
+  const [loadEditor, setLoadEditor] = useState(false);
   const scriptsExecutor = async (editor) => {
-    console.log("script executing");
-    // Extracts script tags from the content.
-    const getScriptsFromContent = (content) => {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = content;
-      return tempDiv.getElementsByTagName("script");
-    };
-
-    // Creates a virtual environment for executing scripts.
-    const createVirtualEnvironment = (content) => {
+    const createIframe = () => {
       const iframe = document.createElement("iframe");
       iframe.style.display = "none";
+      iframe.sandbox = "allow-scripts allow-same-origin";
       document.body.appendChild(iframe);
+      return iframe;
+    };
 
-      const iframeDoc = iframe.contentDocument;
-      iframeDoc.open();
-      iframeDoc.write(`
-        <!DOCTYPE html>
-        <html>
+    const executeScriptsInIframe = (editorContent) => {
+      const iframe = createIframe();
+      return new Promise((resolve) => {
+        const iframeDocument =
+          iframe.contentDocument || iframe.contentWindow.document;
+
+        iframeDocument.open();
+        iframeDocument.write(`
+          <html>
           <head>
-            <base href="${window.location.origin}">
+          <base href="${window.location.origin}">
           </head>
-          <body>${content}</body>
-        </html>
-      `);
-      iframeDoc.close();
-      console.log(iframe, iframeDoc, iframe.contentWindow); // checkhere imp
-      return { iframe, document: iframeDoc, window: iframe.contentWindow };
+          <body>${editorContent}</body>
+          </html>
+          `);
+        iframeDocument.close();
+        iframe.onload = () => {
+          const updatedContent = iframeDocument.body.innerHTML;
+          resolve(updatedContent);
+        };
+        setTimeout(() => {
+          iframe.remove();
+        }, 3000);
+      });
     };
 
-    // Loads an external script.
-    const loadExternalScript = async (src) => {
-      const scriptLoader = new tinymce.dom.ScriptLoader();
-      console.log(scriptLoader); // imp check here
-      await scriptLoader.loadScript(src);
-    };
-
-    // Executes an inline script.
-    const executeInlineScript = (scriptContent, doc, win) => {
-      // eslint-disable-next-line no-new-func
-      const scriptFunction = new Function("document", "window", scriptContent);
-      scriptFunction(doc, win);
-    };
-
-    // Executes all the scripts in the content.
-    const executeScripts = async (scripts, doc, win) => {
-      for (const script of scripts) {
-        if (script.src) {
-          await loadExternalScript(script.src);
-        } else {
-          executeInlineScript(script.innerText, doc, win);
-        }
-      }
-    };
-
-    // Handles the case when the editor is in inline mode.
-    const handleInlineEditor = async (editor) => {
-      const virtualEnv = createVirtualEnvironment(editor.getContent());
-      await executeScripts(
-        getScriptsFromContent(virtualEnv.document.body.innerHTML),
-        virtualEnv.document,
-        virtualEnv.window
-      );
-      editor.setContent(virtualEnv.document.body.innerHTML); //fix here
-      virtualEnv.iframe.remove();
-    };
-
-    // Handles the case when the editor is not in inline mode.
-    const handleNonInlineEditor = async (editor) => {
-      const doc = editor.getDoc();
-      const win = editor.getWin();
-      await executeScripts(
-        getScriptsFromContent(editor.getContent()),
-        doc,
-        win
-      );
+    const handleEditor = async (editor) => {
+      const content = await executeScriptsInIframe(editor.getContent());
+      editor.setContent(content);
+      editor.focus();
     };
 
     try {
-      if (editor.inline) {
-        await handleInlineEditor(editor);
-      } else {
-        await handleNonInlineEditor(editor);
-      }
+      await handleEditor(editor);
     } catch (error) {
       console.error("Error handling editor scripts:", error);
     }
-    setIsScriptLoaded(false);
   };
   useEffect(() => {
-    if (isScriptLoaded) {
-      scriptsExecutor(editorRef.current);
+    if (editorParentRef.current) {
+      setLoadEditor(true);
     }
-  }, [isScriptLoaded]);
-  console.log(isScriptLoaded);
+  }, [editorParentRef.current]);
   return {
     editorRef,
-    // isEditorLoading,
-    onEditorLoad,
     editorParentRef,
-    setIsScriptLoaded,
+    scriptsExecutor,
+    loadEditor,
   };
 };
 export default useTinymceEditorController;

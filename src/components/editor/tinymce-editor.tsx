@@ -3,25 +3,22 @@ import { Editor } from "@tinymce/tinymce-react";
 import { TINYMCE_REL_OPTIONS } from "../../utils";
 
 function TinymceEditor() {
-  const {
-    editorRef,
-    // isEditorLoading,
-    onEditorLoad,
-    editorParentRef,
-    setIsScriptLoaded,
-  } = useTinymceEditorController();
+  const { editorRef, editorParentRef, scriptsExecutor, loadEditor } =
+    useTinymceEditorController();
   const editorType = "inlineEditor";
   return (
     <>
       <div ref={editorParentRef}>
-        {
+        {loadEditor && (
           <Editor
             apiKey="hbs4xg9mda6sjm8iml2osrjr5mtwhgqn3qerh9j6cddc2s5i"
             //@ts-ignore
             onInit={(_evt, editor) => {
               //@ts-ignore
               editorRef.current = editor;
-              onEditorLoad();
+              setTimeout(() => {
+                scriptsExecutor(editor);
+              }, 0);
             }}
             //@ts-ignore
             initialValue={""}
@@ -39,10 +36,11 @@ function TinymceEditor() {
               contextmenu: false,
               toolbar_mode: editorType === "inlineEditor" ? "wrap" : "sliding",
               toolbar_location: "top",
-              //   fixed_toolbar_container_target: editorParentRef.current,
+              fixed_toolbar_container_target:
+                editorParentRef.current || undefined,
               placeholder: "Start typing...",
               menubar: false,
-              //   inline: editorType === "inlineEditor",
+              inline: editorType === "inlineEditor",
               //@ts-ignore
               min_height: 200,
               //@ts-ignore
@@ -89,10 +87,9 @@ function TinymceEditor() {
                       );
                       if (saveButton) {
                         saveButton.addEventListener("click", () => {
-                          console.log("running");
-                          // setTimeout(() => {
-                          setIsScriptLoaded(true);
-                          // }, 0);
+                          setTimeout(() => {
+                            scriptsExecutor(editor);
+                          }, 0);
                         });
                       }
                     }
@@ -101,7 +98,7 @@ function TinymceEditor() {
               },
             }}
           />
-        }
+        )}
       </div>
     </>
   );
