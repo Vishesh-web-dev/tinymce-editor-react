@@ -3,7 +3,7 @@ import { Editor } from "@tinymce/tinymce-react";
 import { TINYMCE_REL_OPTIONS } from "../../utils";
 
 function TinymceEditor() {
-  const { editorRef, editorParentRef, scriptsExecutor, loadEditor } =
+  const { editorRef, editorParentRef, onExecuteScripts, loadEditor } =
     useTinymceEditorController();
   const editorType = "inlineEditor";
   return (
@@ -17,7 +17,7 @@ function TinymceEditor() {
               //@ts-ignore
               editorRef.current = editor;
               setTimeout(() => {
-                scriptsExecutor(editor);
+                onExecuteScripts();
               }, 0);
             }}
             //@ts-ignore
@@ -88,7 +88,7 @@ function TinymceEditor() {
                       if (saveButton) {
                         saveButton.addEventListener("click", () => {
                           setTimeout(() => {
-                            scriptsExecutor(editor);
+                            onExecuteScripts(); 
                           }, 0);
                         });
                       }
